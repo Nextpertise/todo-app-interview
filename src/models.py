@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 import uuid
 
@@ -11,3 +11,5 @@ class Todo(BaseModel):
 
     def __repr__(self):
         return f"Todo(id={self.uuid}, title={self.title}, description={self.description}, parent_id={self.parent_uuid})"
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
