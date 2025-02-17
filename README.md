@@ -25,7 +25,7 @@ $ poetry install
 
 # Run the FastAPI server
 $ cd src
-$ uvicorn main:app --reload
+$ poetry run uvicorn main:app --reload
 
 # Run the tests (from the root directory) and set the python path
 $ PYTHONPATH=src poetry run pytest
