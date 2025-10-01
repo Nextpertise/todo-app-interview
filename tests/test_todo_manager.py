@@ -1,7 +1,11 @@
+import random
 import unittest
-import uuid
+
+import pytest
 
 from lib.todo_manager import TodoManager
+from tests.helpers import build_linear_n, timeit, build_star_tree
+
 
 class TestTodoManager(unittest.TestCase):
     def setUp(self):
@@ -34,10 +38,13 @@ class TestTodoManager(unittest.TestCase):
 
     def test_3_todo_with_same_title_should_fail(self):
         self.manager.add_todo("Test Task 1", "This is a test.")
-        self.manager.add_todo("Test Task 2", "This is another test.")
+        todo_obj = self.manager.add_todo("Test Task 2", "This is another test.")
 
         with self.assertRaises(ValueError):
             self.manager.add_todo("Test Task 2", "Test number 3")
+
+        self.manager.remove_todo(todo_obj.uuid)
+        self.manager.add_todo("Test Task 2", "Test number 3")
 
     def test_4_editing_todo_outside_of_manager_should_not_change_todo_inside(self):
         todo1 = self.manager.add_todo("Test Task 1", "This is a test.")
@@ -49,7 +56,7 @@ class TestTodoManager(unittest.TestCase):
         todo2 = self.manager.add_todo("Test Task 2", "This is a test.")
         todo2.title = "Test Task 2 edited"
         returned_todo = self.manager.try_get_todo_by_uuid(todo2.uuid)
-        self.assertEqual(returned_todo.title, "Test Task 3")
+        self.assertEqual(returned_todo.title, "Test Task 2")
 
         todo3 = self.manager.add_todo("Test Task 3", "This is a test.")
         all_todos = self.manager.get_all_todos()
@@ -95,4 +102,64 @@ class TestTodoManager(unittest.TestCase):
         self.assertIn(todo_6.uuid, children)
         self.assertIn(todo_7.uuid, children)
 
+    @pytest.mark.timeout(5)
+    def test_7_perf_lookup_try_get_todo_by_uuid_scaling(self):
+        N_SMALL = 5_000
+        N_LARGE = 50_000
+
+        manager_small = TodoManager()
+        todos_small = build_linear_n(manager_small, N_SMALL)
+
+        manager_large = TodoManager()
+        todos_large = build_linear_n(manager_large, N_LARGE)
+
+        sample_small = [t.uuid for t in random.sample(todos_small, k=200)]
+        sample_large = [t.uuid for t in random.sample(todos_large, k=200)]
+
+        def lookup_small():
+            for u in sample_small:
+                assert manager_small.try_get_todo_by_uuid(u) is not None
+
+        def lookup_large():
+            for u in sample_large:
+                assert manager_large.try_get_todo_by_uuid(u) is not None
+
+
+        t_small = timeit(lookup_small, repeat=3)
+        t_large = timeit(lookup_large, repeat=3)
+        ratio = t_large / max(t_small, 1e-9)
+
+        assert ratio < 3.0, f"Too much slow down for large amounts of todos: {ratio}"
+
+    @pytest.mark.timeout(5)
+    def test_8_perf_get_children_scaling(self):
+        PARENTS_SMALL = 300
+        CHILDREN_PER_PARENT_SMALL = 10  # total ~3k
+        PARENTS_LARGE = 300
+        CHILDREN_PER_PARENT_LARGE = 100  # total ~30k
+
+        manager_small = TodoManager()
+        parents_small, _ = build_star_tree(manager_small, PARENTS_SMALL, CHILDREN_PER_PARENT_SMALL)
+
+        manager_large = TodoManager()
+        parents_large, _ = build_star_tree(manager_large, PARENTS_LARGE, CHILDREN_PER_PARENT_LARGE)
+
+        sample_small = random.sample(parents_small, k=50)
+        sample_large = random.sample(parents_large, k=50)
+
+        def fetch_small():
+            for p in sample_small:
+                children = manager_small.get_children(p.uuid)
+                assert len(children) == CHILDREN_PER_PARENT_SMALL
+
+        def fetch_large():
+            for p in sample_large:
+                children = manager_large.get_children(p.uuid)
+                assert len(children) == CHILDREN_PER_PARENT_LARGE
+
+        t_small = timeit(fetch_small, repeat=3)
+        t_large = timeit(fetch_large, repeat=3)
+
+        ratio = t_large / max(t_small, 1e-9)
+        assert ratio < 6.0, f"get_children scaled too poorly: {ratio:.2f}x"
 
