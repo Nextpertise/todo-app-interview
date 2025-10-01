@@ -7,9 +7,12 @@ class Todo(BaseModel):
     title: str
     description: str
     parent_uuid: Optional[str] = None
-    # children: List[str] = Field(default_factory=list)
 
     def __repr__(self):
         return f"Todo(id={self.uuid}, title={self.title}, description={self.description}, parent_id={self.parent_uuid})"
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
+
+
+class TodoWithChildren(Todo):
+    children: List[str] = Field(default_factory=list)
