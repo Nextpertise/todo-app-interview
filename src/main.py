@@ -1,4 +1,6 @@
 from typing import List, Literal
+from uuid import UUID
+
 from fastapi import FastAPI
 
 from lib.todo_manager import TodoManager
@@ -14,7 +16,7 @@ async def list_all_todos() -> List[Todo]:
 
 
 @app.get("/todo/{todo_uuid}")
-async def get_todo(todo_uuid: str) -> TodoWithChildren | Literal[False]:
+async def get_todo(todo_uuid: UUID) -> Todo:
     return manager.try_get_todo_by_uuid(todo_uuid)
 
 
