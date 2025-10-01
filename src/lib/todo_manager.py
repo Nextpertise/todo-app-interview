@@ -1,65 +1,57 @@
-from copy import copy
-from typing import Literal
+from uuid import UUID
 
-from models import Todo, TodoWithChildren
+from lib.models import Todo, TodoWithChildren
 
 
 class TodoManager:
+    _todo_list: list[Todo]
+
     def __init__(self):
-        root_no_children = Todo(title="title2", description="I am the root")
-        parent = Todo(title="title1", description="I am the root and I have children")
-        child_1 = Todo(title="title1a", description="", parent_uuid=parent.uuid)
-        child_2 = Todo(title="title1b", description="", parent_uuid=child_1.uuid)
+        self._todo_list = []
 
-        self.todos: dict[str, Todo] = {
-            root_no_children.uuid: root_no_children,
-            parent.uuid: parent,
-            child_1.uuid: child_1,
-            child_2.uuid: child_2,
-        }
-
-    def add_todo(self, title: str, description: str, parent_uuid: str = None) -> Todo:
-        if parent_uuid and parent_uuid not in self.todos:
+    def add_todo(self, title: str, description: str, parent_uuid: UUID | None = None) -> Todo:
+        if parent_uuid and (self.try_get_todo_by_uuid(parent_uuid) is None):
             raise ValueError(f"Parent todo with uuid {parent_uuid} does not exist.")
-        todo = Todo(
-            title=title,
-            description=description,
-            parent_uuid=parent_uuid
-        )
-        self.todos[todo.uuid] = todo
+
+        todo = Todo(title=title, description=description, parent_uuid=parent_uuid)
+
+        self._todo_list.append(todo)
         return todo
 
-    def get_todo_by_uuid(self, todo_uuid: str) -> TodoWithChildren | Literal[False]:
-        todo = self.todos.get(todo_uuid, False)
-        if not todo:
-            return False
+    def try_get_todo_by_uuid(self, todo_uuid: UUID) -> TodoWithChildren | None:
+        found_todo = None
+        for todo in self._todo_list:
+            if todo.uuid == todo_uuid:
+                found_todo = todo
+
+        if found_todo is None:
+            return None
 
         children = self.get_children(todo_uuid)
-        todo_with_children = TodoWithChildren.model_validate(todo.model_dump())
+        todo_with_children = TodoWithChildren.model_validate(found_todo.model_dump())
         todo_with_children.children.extend(children)
         return todo_with_children
 
-    def remove_todo(self, todo_uuid: str) -> bool:
-        todo = self.get_todo_by_uuid(todo_uuid)
+    def remove_todo(self, todo_uuid: UUID, remove_children=False) -> bool:
+        todo = self.try_get_todo_by_uuid(todo_uuid)
         if not todo:
             return False
 
-        for todo_child_uuid in todo.children:
-            self.remove_todo(todo_child_uuid)
+        if remove_children:
+            for todo_child_uuid in todo.children:
+                self.remove_todo(todo_child_uuid)
 
-        self.todos.pop(todo_uuid, None)
+        self._todo_list.remove(todo)
         return True
 
-    def get_all_todos(self):
-        return list(self.todos.values())
+    def get_all_todos(self) -> list[Todo]:
+        return self._todo_list
 
-    def get_children(self, parent_uuid: str) -> list[str]:
-        return [todo.uuid for todo in self.todos.values() if todo.parent_uuid == parent_uuid]
+    def get_children(self, parent_uuid: UUID) -> list[UUID]:
+        parent_todo = self.try_get_todo_by_uuid(parent_uuid)
+        if not parent_todo:
+            return []
+        return parent_todo.children
 
-    def get_children_recursive(self, parent_uuid: str) -> list[str]:
-        children = self.get_children(parent_uuid)
-        all_children = copy(children)
-        for child_uuid in children:
-            all_children.extend(self.get_children_recursive(child_uuid))
-        return all_children
-
+    def get_children_recursive(self, parent_uuid: UUID) -> list[UUID]:
+        raise NotImplementedError("This should return a list of UUIDs of children and children's children, etc.")

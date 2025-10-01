@@ -1,12 +1,12 @@
 from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
-import uuid
+from uuid import UUID, uuid4
 
 class Todo(BaseModel):
-    uuid: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    uuid: UUID = Field(default_factory=lambda: uuid4())
     title: str
     description: str
-    parent_uuid: Optional[str] = None
+    parent_uuid: Optional[UUID] = None
 
     def __repr__(self):
         return f"Todo(id={self.uuid}, title={self.title}, description={self.description}, parent_id={self.parent_uuid})"
@@ -15,4 +15,4 @@ class Todo(BaseModel):
 
 
 class TodoWithChildren(Todo):
-    children: List[str] = Field(default_factory=list)
+    children: List[UUID] = []
