@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "todo-app-interview"
+version = "0.1.0"
+description = ""
+authors = ["Teun Ouwehand <teun@nextpertise.nl>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115.8"
+uvicorn = "^0.34.0"
+pytest = "^8.3.4"
+pytest-timeout = "^2.4.0"
+
+[tool.poetry.group.development.dependencies]
+black = {extras = ["d"], version = "^24.8.0"}
+mypy = "^1.10.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
